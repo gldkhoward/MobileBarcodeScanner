@@ -9,6 +9,16 @@ export default function BarcodeScanner({ onResult, onError }) {
       facingMode: 'environment',
       width: { ideal: 1280 },
       height: { ideal: 720 },
+      // Add advanced camera constraints for focus and exposure
+      advanced: [
+        {
+          focusMode: 'continuous',
+          exposureMode: 'continuous',
+          whiteBalanceMode: 'continuous',
+          // Add zoom constraint if devices support it
+          zoom: 1.0
+        }
+      ]
     },
   })
   const [torch, setTorch] = useState(false)
@@ -54,11 +64,28 @@ export default function BarcodeScanner({ onResult, onError }) {
     checkTorch()
   }, [])
 
-  // Toggle torch/flashlight
+  // Toggle torch/flashlight with enhanced mobile support
   const toggleTorch = useCallback(() => {
-    setTorch(!torch)
-    setTorchEnabled(!torch)
-  }, [torch, setTorchEnabled])
+    const newTorchState = !torch
+    setTorch(newTorchState)
+    
+    // First try the react-zxing built-in torch method
+    setTorchEnabled(newTorchState)
+    
+    // Backup approach for devices where the above might not work
+    try {
+      if (ref.current && ref.current.srcObject) {
+        const videoTrack = ref.current.srcObject.getVideoTracks()[0];
+        if (videoTrack && typeof videoTrack.applyConstraints === 'function') {
+          videoTrack.applyConstraints({
+            advanced: [{ torch: newTorchState }]
+          }).catch(err => console.log('Torch control error:', err));
+        }
+      }
+    } catch (err) {
+      console.error('Failed to apply torch control:', err)
+    }
+  }, [torch, setTorchEnabled, ref])
 
   // Switch camera
   const switchCamera = useCallback(() => {
@@ -70,16 +97,59 @@ export default function BarcodeScanner({ onResult, onError }) {
     }))
   }, [])
 
+  // Handle manual focus tap
+  const handleFocusTap = useCallback((e) => {
+    try {
+      if (ref.current && ref.current.srcObject) {
+        const videoTrack = ref.current.srcObject.getVideoTracks()[0];
+        
+        if (videoTrack && videoTrack.getCapabilities) {
+          const capabilities = videoTrack.getCapabilities();
+          
+          // Check if manual focus is supported
+          if (capabilities.focusMode && capabilities.focusMode.includes('manual')) {
+            const rect = e.target.getBoundingClientRect();
+            const x = (e.clientX - rect.left) / rect.width;
+            const y = (e.clientY - rect.top) / rect.height;
+            
+            videoTrack.applyConstraints({
+              advanced: [
+                {
+                  focusMode: 'manual',
+                  focusDistance: 0.5,  // Mid-range focus distance
+                  pointsOfInterest: [{ x, y }]
+                }
+              ]
+            }).then(() => {
+              // After manual focus, return to continuous
+              setTimeout(() => {
+                videoTrack.applyConstraints({
+                  advanced: [{ focusMode: 'continuous' }]
+                }).catch(err => console.log('Return to auto focus error:', err));
+              }, 2000);
+            }).catch(err => console.log('Manual focus error:', err));
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to apply manual focus:', err);
+    }
+  }, [ref]);
+
   return (
     <div className="relative w-full max-w-lg mx-auto">
       <div className="rounded-lg overflow-hidden relative aspect-video bg-black">
         <video 
           ref={ref} 
           className="w-full h-full object-cover"
+          onClick={handleFocusTap}
         />
         <div className="absolute top-0 left-0 right-0 bottom-0 pointer-events-none">
           <div className="absolute inset-0 border-2 border-white/30 rounded-lg"></div>
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-2/3 h-1/2 border-2 border-green-500/70 rounded"></div>
+        </div>
+        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-black/60 text-white text-xs px-3 py-1 rounded-full">
+          Tap to focus
         </div>
       </div>
 
