@@ -4,29 +4,25 @@ import { useZxing } from 'react-zxing'
 import { useState, useCallback, useEffect } from 'react'
 
 export default function BarcodeScanner({ onResult, onError }) {
-  // State for managing torch/flashlight and device detection
+  // Basic state
   const [torch, setTorch] = useState(false)
   const [hasTorch, setHasTorch] = useState(false)
   const [isAndroid, setIsAndroid] = useState(false)
+  
+  // Camera constraints - optimized but not too aggressive
   const [constraints, setConstraints] = useState({
     video: {
       facingMode: 'environment',
       width: { ideal: 1280 },
       height: { ideal: 720 },
-      // Add advanced camera constraints optimized for Android
       advanced: [
         {
-          // Set focus closer for Android barcode scanning
           focusMode: 'continuous',
-          focusDistance: 0.3, // Closer focus for barcodes
           exposureMode: 'continuous',
-          exposureCompensation: 1.0, // Slightly brighter for barcode contrast
           whiteBalanceMode: 'continuous',
-          // Set initial zoom level slightly higher (Android often needs this)
-          zoom: 1.2
         }
       ]
-    }
+    },
   })
 
   const {
@@ -39,11 +35,12 @@ export default function BarcodeScanner({ onResult, onError }) {
     constraints,
   })
 
-  // Check if the device has a torch/flashlight capability
+  // Detect device type and check torch capability
   useEffect(() => {
     // Detect if device is Android
     const userAgent = navigator.userAgent || navigator.vendor || window.opera
-    setIsAndroid(/android/i.test(userAgent))
+    const isAndroidDevice = /android/i.test(userAgent)
+    setIsAndroid(isAndroidDevice)
     
     const checkTorch = async () => {
       try {
@@ -73,28 +70,12 @@ export default function BarcodeScanner({ onResult, onError }) {
     checkTorch()
   }, [])
 
-  // Toggle torch/flashlight with enhanced mobile support
+  // Toggle torch/flashlight
   const toggleTorch = useCallback(() => {
     const newTorchState = !torch
     setTorch(newTorchState)
-    
-    // First try the react-zxing built-in torch method
     setTorchEnabled(newTorchState)
-    
-    // Backup approach for devices where the above might not work
-    try {
-      if (ref.current && ref.current.srcObject) {
-        const videoTrack = ref.current.srcObject.getVideoTracks()[0];
-        if (videoTrack && typeof videoTrack.applyConstraints === 'function') {
-          videoTrack.applyConstraints({
-            advanced: [{ torch: newTorchState }]
-          }).catch(err => console.log('Torch control error:', err));
-        }
-      }
-    } catch (err) {
-      console.error('Failed to apply torch control:', err)
-    }
-  }, [torch, setTorchEnabled, ref])
+  }, [torch, setTorchEnabled])
 
   // Switch camera
   const switchCamera = useCallback(() => {
@@ -125,7 +106,7 @@ export default function BarcodeScanner({ onResult, onError }) {
               advanced: [
                 {
                   focusMode: 'manual',
-                  focusDistance: 0.5,  // Mid-range focus distance
+                  focusDistance: isAndroid ? 0.3 : 0.5,
                   pointsOfInterest: [{ x, y }]
                 }
               ]
@@ -143,16 +124,15 @@ export default function BarcodeScanner({ onResult, onError }) {
     } catch (err) {
       console.error('Failed to apply manual focus:', err);
     }
-  }, [ref]);
+  }, [ref, isAndroid]);
 
   return (
     <div className="relative w-full max-w-lg mx-auto">
-      <div className="rounded-lg overflow-hidden relative aspect-video bg-white video-container">
+      <div className="rounded-lg overflow-hidden relative aspect-video bg-black">
         <video 
           ref={ref} 
           className="w-full h-full object-cover"
           onClick={handleFocusTap}
-          style={{ filter: isAndroid ? 'contrast(1.2) brightness(1.1)' : 'none' }}
         />
         <div className="absolute top-0 left-0 right-0 bottom-0 pointer-events-none">
           <div className="absolute inset-0 border-2 border-white/30 rounded-lg"></div>

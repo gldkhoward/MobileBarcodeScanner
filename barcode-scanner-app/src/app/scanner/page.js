@@ -134,9 +134,9 @@ export default function ScannerPage() {
                 <p className="font-semibold">Android Tips:</p>
                 <ul className="list-disc list-inside mt-1">
                   <li>Hold steady 4-8 inches from barcode</li>
-                  <li>Tap the screen to focus</li>
+                  <li>Tap directly on the barcode to focus</li>
                   <li>Try in good lighting conditions</li>
-                  <li>Avoid shadows and glare</li>
+                  <li>Works with both QR and traditional barcodes</li>
                 </ul>
               </div>
             )}
