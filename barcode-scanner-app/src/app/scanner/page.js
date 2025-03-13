@@ -9,17 +9,50 @@ export default function ScannerPage() {
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isIOS, setIsIOS] = useState(false)
+  const [isAndroid, setIsAndroid] = useState(false)
   const router = useRouter()
-
-  // Handle loading state
+  
+  // Detect device type for optimizations
   useEffect(() => {
-    // Give a brief moment for the camera to initialize
+    const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+    setIsIOS(/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream);
+    setIsAndroid(/android/i.test(userAgent));
+  }, [])
+
+  // Handle loading state and iOS-specific optimizations
+  useEffect(() => {
+    // Give time for the camera to initialize (longer on iOS)
     const timer = setTimeout(() => {
       setIsLoading(false)
-    }, 1500)
-
-    return () => clearTimeout(timer)
-  }, [])
+    }, isIOS ? 2500 : 1500)
+    
+    // iOS specific handling - prevent screen from sleeping during scanning
+    if (isIOS) {
+      // Request no sleep if available
+      if (navigator.wakeLock) {
+        navigator.wakeLock.request('screen')
+          .catch(err => console.log('Wake Lock error:', err));
+      }
+      
+      // Prevent scrolling/bouncing on iOS
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      document.body.style.height = '100%';
+    }
+    
+    return () => {
+      clearTimeout(timer);
+      // Restore normal scrolling when component unmounts
+      if (isIOS) {
+        document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.width = '';
+        document.body.style.height = '';
+      }
+    }
+  }, [isIOS])
 
   // Handle barcode scan result
   const handleResult = (decodedResult) => {
@@ -82,6 +115,31 @@ export default function ScannerPage() {
               Position the barcode within the frame to scan
             </p>
             <BarcodeScanner onResult={handleResult} onError={handleError} />
+            
+            {/* Device-specific help text */}
+            {isIOS && (
+              <div className="mt-4 p-3 bg-blue-50 text-blue-800 rounded-lg text-sm">
+                <p className="font-semibold">iOS Tips:</p>
+                <ul className="list-disc list-inside mt-1">
+                  <li>Make sure you allowed camera access</li>
+                  <li>Good lighting improves scanning</li>
+                  <li>Tap the screen to focus on barcodes</li>
+                  <li>Hold the camera steady</li>
+                </ul>
+              </div>
+            )}
+            
+            {isAndroid && (
+              <div className="mt-4 p-3 bg-blue-50 text-blue-800 rounded-lg text-sm">
+                <p className="font-semibold">Android Tips:</p>
+                <ul className="list-disc list-inside mt-1">
+                  <li>Hold steady 4-8 inches from barcode</li>
+                  <li>Tap the screen to focus</li>
+                  <li>Try in good lighting conditions</li>
+                  <li>Avoid shadows and glare</li>
+                </ul>
+              </div>
+            )}
             
             {error && (
               <div className="mt-6 p-4 bg-red-50 text-red-700 rounded-lg w-full max-w-lg">

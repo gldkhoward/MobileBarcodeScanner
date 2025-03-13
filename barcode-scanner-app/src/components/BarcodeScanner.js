@@ -4,25 +4,30 @@ import { useZxing } from 'react-zxing'
 import { useState, useCallback, useEffect } from 'react'
 
 export default function BarcodeScanner({ onResult, onError }) {
+  // State for managing torch/flashlight and device detection
+  const [torch, setTorch] = useState(false)
+  const [hasTorch, setHasTorch] = useState(false)
+  const [isAndroid, setIsAndroid] = useState(false)
   const [constraints, setConstraints] = useState({
     video: {
       facingMode: 'environment',
       width: { ideal: 1280 },
       height: { ideal: 720 },
-      // Add advanced camera constraints for focus and exposure
+      // Add advanced camera constraints optimized for Android
       advanced: [
         {
+          // Set focus closer for Android barcode scanning
           focusMode: 'continuous',
+          focusDistance: 0.3, // Closer focus for barcodes
           exposureMode: 'continuous',
+          exposureCompensation: 1.0, // Slightly brighter for barcode contrast
           whiteBalanceMode: 'continuous',
-          // Add zoom constraint if devices support it
-          zoom: 1.0
+          // Set initial zoom level slightly higher (Android often needs this)
+          zoom: 1.2
         }
       ]
-    },
+    }
   })
-  const [torch, setTorch] = useState(false)
-  const [hasTorch, setHasTorch] = useState(false)
 
   const {
     ref,
@@ -36,6 +41,10 @@ export default function BarcodeScanner({ onResult, onError }) {
 
   // Check if the device has a torch/flashlight capability
   useEffect(() => {
+    // Detect if device is Android
+    const userAgent = navigator.userAgent || navigator.vendor || window.opera
+    setIsAndroid(/android/i.test(userAgent))
+    
     const checkTorch = async () => {
       try {
         const devices = await navigator.mediaDevices.enumerateDevices()
@@ -138,17 +147,37 @@ export default function BarcodeScanner({ onResult, onError }) {
 
   return (
     <div className="relative w-full max-w-lg mx-auto">
-      <div className="rounded-lg overflow-hidden relative aspect-video bg-black">
+      <div className="rounded-lg overflow-hidden relative aspect-video bg-white video-container">
         <video 
           ref={ref} 
           className="w-full h-full object-cover"
           onClick={handleFocusTap}
+          style={{ filter: isAndroid ? 'contrast(1.2) brightness(1.1)' : 'none' }}
         />
         <div className="absolute top-0 left-0 right-0 bottom-0 pointer-events-none">
           <div className="absolute inset-0 border-2 border-white/30 rounded-lg"></div>
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-2/3 h-1/2 border-2 border-green-500/70 rounded"></div>
+          {/* Animated focus window that transitions between rectangle and square */}
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 border-2 border-green-500 rounded animate-scan-window">
+            <style jsx>{`
+              @keyframes scan-pulse {
+                0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4); }
+                70% { box-shadow: 0 0 0 10px rgba(76, 175, 80, 0); }
+                100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+              }
+              
+              @keyframes scan-morph {
+                0% { width: 70%; height: 50%; }
+                50% { width: 60%; height: 60%; }
+                100% { width: 70%; height: 50%; }
+              }
+              
+              .animate-scan-window {
+                animation: scan-pulse 2s infinite, scan-morph 4s ease-in-out infinite;
+              }
+            `}</style>
+          </div>
         </div>
-        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-black/60 text-white text-xs px-3 py-1 rounded-full">
+        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-green-600 text-white text-xs px-3 py-1 rounded-full">
           Tap to focus
         </div>
       </div>

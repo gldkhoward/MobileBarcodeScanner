@@ -24,3 +24,62 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Enforce light mode */
+:root {
+  color-scheme: light only;
+  --foreground-rgb: 0, 0, 0;
+  --background-rgb: 248, 250, 252;
+}
+
+/* Enforce light mode for dark mode users */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground-rgb: 0, 0, 0;
+    --background-rgb: 248, 250, 252;
+  }
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: rgb(var(--background-rgb));
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Remove system-level focus visualization as we provide our own */
+*:focus {
+  outline: none !important;
+}
+
+/* Animations for focus ring on Android */
+@keyframes focus-ring {
+  0% {
+    transform: scale(0.5);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+/* Improved tap target sizes for mobile */
+button, 
+a.button, 
+[role="button"] {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Prevent iOS notch interference with camera view */
+.safe-area-padding {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Specific Android optimizations */
+.android-device .video-container {
+  /* Android often needs a specific contrast adjustment for barcode scanning */
+  filter: contrast(1.2) brightness(1.1);
+}
